@@ -182,6 +182,9 @@ Interfaces provided for `document access strategies`:
  * Notify the manager about page rendering and un-rendering events
  * Notify the manager about document content changes
 
+Interfaces provided for `highlights`:
+ * Notify the manager about user interactions involving `highlights`. (Mouse over, out, down, click, etc)
+
 Interfaces provided for client code:
  * Register `document access strategies`
  * Register `selector creators`
@@ -194,7 +197,7 @@ Interfaces provided for client code:
  * Get all `anchors` (for a given page)
  * Get all the `orphan` or `half-orphan` `loads`
  * Get all `highlights` (for a given set of `loads`)
- * Subscribe to various notifications (`anchors` created or removed, `highlights` created or removed, etc.)
+ * Subscribe to various notifications (`anchors` created or removed, `highlights` created or removed, user interacting with the `highlights`, etc.)
 
 ## Processes and workflows
 
