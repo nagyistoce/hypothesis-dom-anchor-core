@@ -41,7 +41,7 @@ Any part of any `document`.
 
 A `segment` can intersect with several `pages`.
 
-#### Load
+#### Payload
 
 Any object belonging to an `anchor`, passed in by client code, and stored together with the `anchor` created for it, for the convenience of the client code.
 
@@ -83,11 +83,11 @@ A piece of information representing the results of a previous attempt to identif
  * `Anchors` can be `virtual`, `real` or `partially real`, depending on whether or not the corresponding `highlights` are rendered. (`virtual`: *no* highlights are rendered; `real`: *all* highlights are rendered; `partially real`: *some* highlights are rendered.)
  * `Anchors` can carry links to a `payload`, if so desired by the client code using them.
 
-#### Orphan load
+#### Orphan payload
 
 A `payload` for which no `anchor` could be created for.
 
-#### Half-orphan load
+#### Half-orphan payload
 
 A `payload` which was mentioned by more than one anchoring attempts, but not all the requested `anchor` could be created.
 
@@ -171,8 +171,8 @@ Responsible for controlling all the anchoring-related processes.
 
 Keeps lists of:
  * Current `Anchors` (per-`page`)
- * Current `Orphan loads`
- * Current `Half-orphan loads`
+ * Current `Orphan payloads`
+ * Current `Half-orphan payloads`
  * Available `document access strategies`
  * Available `selector creators`
  * Available `anchoring strategies`
