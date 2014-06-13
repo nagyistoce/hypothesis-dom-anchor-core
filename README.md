@@ -45,7 +45,7 @@ A `segment` can intersect with several `pages`.
 
 Any object belonging to an `anchor`, passed in by client code, and stored together with the `anchor` created for it, for the convenience of the client code.
 
-A `load` might belong to more than one `anchors`.
+A `payload` might belong to more than one `anchors`.
 
 #### Segment description
 
@@ -81,15 +81,15 @@ A piece of information representing the results of a previous attempt to identif
  * If and `anchor` intersects with several `pages`, then it will have different `highlights` for each page.
  * `Anchors` keep a per-`page` list of their `highlights`.
  * `Anchors` can be `virtual`, `real` or `partially real`, depending on whether or not the corresponding `highlights` are rendered. (`virtual`: *no* highlights are rendered; `real`: *all* highlights are rendered; `partially real`: *some* highlights are rendered.)
- * `Anchors` can carry links to a `load`, if so desired by the client code using them.
+ * `Anchors` can carry links to a `payload`, if so desired by the client code using them.
 
 #### Orphan load
 
-A `load` for which no `anchor` could be created for.
+A `payload` for which no `anchor` could be created for.
 
 #### Half-orphan load
 
-A `load` which was mentioned by more than one anchoring attempts, but not all the requested `anchor` could be created.
+A `payload` which was mentioned by more than one anchoring attempts, but not all the requested `anchor` could be created.
 
 #### Highlight
 
@@ -189,7 +189,7 @@ Interfaces provided for client code:
  * Register `highlighter engines`
  * Initialize the `manager`
  * Describe a given `segment description` with `selectors`
- * Create an `anchor` from a given list of `selectors` (and optionally, store a `load` with it)
+ * Create an `anchor` from a given list of `selectors` (and optionally, store a `payload` with it)
  * Remove an `anchor`
  * Get all `anchors` (for a given page)
  * Get all the `orphan` or `half-orphan` `loads`
@@ -217,11 +217,11 @@ Interfaces provided for client code:
 
 ### Create an `anchor` based on an existing list of `selectors`
 
- * The client code passes the list of `selectors` to the `manager`, optionally together with a `load`.
+ * The client code passes the list of `selectors` to the `manager`, optionally together with a `payload`.
  * The `manager` with consult with all the registered `anchoring strategies`, and ask each of them whether or not they can come up with an `anchor`. (It will try them according to their configured priority.)
  * If one of the `anchoring strategies` manages to come up with and `anchor`, and this `anchor` is returned to the client code.
  * Additionally, an attempt is made to immediately `realize` the newly created `anchor`.
- * If no `anchoring strategy` can create an `anchor`, then the `load` will be identified as an `orphan` (or a `half-orphan`, if an other `anchor` has successfully been created for the same `load` elsewhere.)
+ * If no `anchoring strategy` can create an `anchor`, then the `payload` will be identified as an `orphan` (or a `half-orphan`, if an other `anchor` has successfully been created for the same `payload` elsewhere.)
 
 ### Remove an `anchor`
  * TODO
