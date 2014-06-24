@@ -28,6 +28,11 @@ class Anchors.Manager
     documentAccessStrategies: @_documentAccessStrategies.map (s) -> s.name
     selectorCreators: @_selectorCreators.map (c) -> c.name
 
+  # Public: prepare the documenty access strategy for usage
+  prepare: (reason) =>
+    @init()
+    @domMapper.prepare reason
+
   # Public: describe a segement with a list of selectors,
   # created by the registered selector creators
   getSelectorsForSegment: (segment) =>
@@ -45,31 +50,6 @@ class Anchors.Manager
         else
           reject "No selector creator could describe this '" +
             segment.type + "' segment."
-
-  test: () ->
-    console.log "Anchoring config is:", @getConfig()
-
-    testSegment =
-      type: "dummy"
-      data: "whatever"
-
-    @domMapper.prepare("creating selectors").then (state) =>
-      elem = document.getElementsByTagName("li")[2]
-      r = document.createRange()
-      r.setStartBefore elem
-      r.setEndAfter elem
-
-      testSegment =
-        type: "raw text range"
-        range: r
-        data:
-          dtmState: state
-
-      @getSelectorsForSegment(testSegment).then((result) ->
-        console.log "Got selectors:", result
-      ).catch((error) ->
-        console.log "Error:", error
-      )
 
   # ========= Interfaces for registering functionality
 
