@@ -8,7 +8,7 @@ Util.flatten = (array) ->
     flat = []
 
     for el in ary
-      flat = flat.concat(if el and $.isArray(el) then flatten(el) else el)
+      flat = flat.concat(if el and Array.isArray(el) then flatten(el) else el)
 
     return flat
 
