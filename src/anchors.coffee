@@ -60,11 +60,40 @@ class Anchors.Manager
   # Public: create an anchor from a list of selectors
   createAnchor: (selectors, payload) ->
     unless selectors?
-      throw new Error "Trying to create anchor for null selector list!"
+      throw new Error "Trying to create an anchor for null selector list!"
 
-    console.log "Should create anchor for selectors", selectors
+    new Promise (resolveAll, rejectAll) =>
+      @_anchoringStrategies.reduce((sequence, strategy) =>
+        sequence.then ->
+          new Promise (resolve, reject) ->
+            console.log "Executing strategy '" + strategy.name + "'..."
+            try
+              Promise.cast(strategy.createAnchor selectors).then (result) ->
+                if result
+                  reject # Break the cycle. We have a solution
+                    type: "we are good"
+                    data: result
+                else
+                  resolve() # Continue with the search
+              , (error) ->
+                resolve() # Continue with the search
+            catch error
+              console.log "While executing strategy '" + strategy.name + "',", error.stack ? error
+              resolve() # Continue with the search
+      , Promise.resolve())
+      .then ->
+        rejectAll "We could not create an anchor from these selectors."
+      , (error) ->
+        if error.type is "we are good"
+          anchor = error.data
+          anchor.payload = payload
+          # TODO: do various other magic
+          resolveAll anchor # Actually return the anchor
+        else
+          rejectAll error
 
-  # ========= Interfaces for registering functionality
+
+  # ========= Interfaces for registering plugins
 
   # Public: register a selector creator. See docs.
   registerSelectorCreator: (selectorCreator) =>
@@ -104,6 +133,38 @@ class Anchors.Manager
     @_highlighterEngines.sort (h1, h2) -> h1.priority - h2.priority
     this
 
+  # Public: convenience method to register any kind of plugin
+  register: (plugins...) ->
+    plugins.forEach (plugin) =>
+      unless plugin?
+        throw new Error "Trying to register null plugin!"
+
+      understood = false
+
+      # Can this plugin be used as a document access strategy?
+      if plugin.applicable? and plugin.get?
+        @registerDocumentAccessStrategy plugin
+        understood = true
+
+      # Can this plugin be used as a selector creator?
+      if plugin.createSelectors?
+        @registerSelectorCreator plugin
+        understood = true
+
+      # Can this plugin be used as an anchoring strategy?
+      if plugin.createAnchor?
+        @registerAnchoringStrategy plugin
+        understood = true
+
+      # Can this plugin be used as a highlighter engine?
+      # TODO
+
+      unless understood
+        console.warn "I don't recognize this plugin:", plugin
+
+    # Return self for chaining
+    this
+
   # ========= Private fields and methods ====
 
   # Private list of registered selector creators
@@ -114,7 +175,7 @@ class Anchors.Manager
   _createSelectorsFromSegment: (segmentDescription, creator) ->
     new Promise (resolve, reject) ->
       Promise.resolve().then( ->
-        creator.createFrom segmentDescription
+        creator.createSelectors segmentDescription
       ).then((selectors) ->
         resolve selectors
       ).catch((error) ->
@@ -184,13 +245,36 @@ class Anchors.Dummy.DocumentAccessStrategy
 
 class Anchors.Dummy.SelectorCreator
   name: "Dummy selector creator"
-  createFrom: (segmentDescription) ->
+  createSelectors: (segmentDescription) ->
     if segmentDescription.type is "dummy"
       type: "DummySelector"
       data: segmentDescription.data
     else
       []
 
+class Anchors.Dummy.SucceedingAnchoringStrategy
+  name: "Succeeding dummy anchoring strategy"
 
+  createAnchor: (selectors) ->
+    type: "Dummy anchor"
+
+class Anchors.Dummy.FailingAnchoringStrategy1
+  name: "Failing anchoring strategy (null)"
+
+  createAnchor: (selectors) ->
+    null
+
+class Anchors.Dummy.FailingAnchoringStrategy2
+  name: "Failing anchoring strategy (exception)"
+
+  createAnchor: (selectors) ->
+    throw new Error "wtf"
+
+class Anchors.Dummy.FailingAnchoringStrategy3
+  name: "Failing anchoring strategy (failed promise)"
+
+  createAnchor: (selectors) ->
+    new Promise (resolve, reject) ->
+      reject()
 
 module.exports = Anchors
