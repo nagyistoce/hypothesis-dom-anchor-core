@@ -14,6 +14,11 @@ class Anchors.Manager
       throw new Error "Element missing!"
     console.log "Creating anchors manager for", @element
 
+    # Create buckets for various groups of anchors
+    @orphans = []      # Orphans
+    @halfOrphans = []  # Half-orphans
+    @anchors = {}      # Anchors on a given page
+
   destroy: ->
     this.stopListening()
 
@@ -27,6 +32,7 @@ class Anchors.Manager
   getConfig: ->
     documentAccessStrategies: @_documentAccessStrategies.map (s) -> s.name
     selectorCreators: @_selectorCreators.map (c) -> c.name
+    anchoringStrategies: @_anchoringStrategies.map (c) -> c.name
 
   # Public: prepare the documenty access strategy for usage
   prepare: (reason) =>
@@ -35,21 +41,28 @@ class Anchors.Manager
 
   # Public: describe a segement with a list of selectors,
   # created by the registered selector creators
-  getSelectorsForSegment: (segment) =>
-    unless segment?
-      throw new Error "Can't describe a NULL segment!"
-    unless segment.type?
-      throw new Error "Can't describe a segment with missing type!"
+  getSelectorsForSegment: (segmentDescription) =>
+    unless segmentDescription?
+      throw new Error "Can't describe a NULL segment description!"
+    unless segmentDescription.type?
+      throw new Error "Can't describe a segment description with missing type!"
     new Promise (resolve, reject) =>
       Promise.all(@_selectorCreators.map (creator) =>
-        @_describeSegment segment, creator
+        @_createSelectorsFromSegment segmentDescription, creator
       ).then (results) ->
         selectors = Util.flatten results
         if selectors.length
           resolve selectors
         else
           reject "No selector creator could describe this '" +
-            segment.type + "' segment."
+            segmentDescription.type + "' segment."
+
+  # Public: create an anchor from a list of selectors
+  createAnchor: (selectors, payload) ->
+    unless selectors?
+      throw new Error "Trying to create anchor for null selector list!"
+
+    console.log "Should create anchor for selectors", selectors
 
   # ========= Interfaces for registering functionality
 
@@ -57,28 +70,51 @@ class Anchors.Manager
   registerSelectorCreator: (selectorCreator) =>
     unless selectorCreator
       throw new Error "Can't register a NULL selector creator!"
+    selectorCreator.configure? this
     @_selectorCreators.push selectorCreator
+    this
 
   # Public: register a document access strategy. See docs.
   registerDocumentAccessStrategy: (strategy) =>
     unless strategy
       throw new Error "Can't register a NULL document access strategy!"
     strategy.priority ?= 50
+    strategy.configure? this
     @_documentAccessStrategies.push strategy
     @_documentAccessStrategies.sort (s1, s2) -> s1.priority > s2.priority
+    this
 
+  # Public: register an anchoring strategy. See docs.
+  registerAnchoringStrategy: (strategy) =>
+    unless strategy
+      throw new Error "Can't register a NULL anchoring strategy!"
+    strategy.configure? this
+    strategy.priority ?= 50
+    @_anchoringStrategies.push strategy
+    @_anchoringStrategies.sort (s1, s2) -> s1.priority - s2.priority
+    this
+
+  # Public: register a highligher engine. See docs.
+  registerHighlighterEngine: (engine) =>
+    unless engine
+      throw new Error "Can't register a NULL highlighter engine!"
+    engine.configure? this
+    engine.priority ?= 50
+    @_highlighterEngines.push engine
+    @_highlighterEngines.sort (h1, h2) -> h1.priority - h2.priority
+    this
 
   # ========= Private fields and methods ====
 
   # Private list of registered selector creators
   _selectorCreators: []
 
-  # Private: try to describe a segment using a selector creator.
+  # Private: try to create selectors for a segment using a selector creator.
   # Apply some error handling
-  _describeSegment: (segment, creator) ->
+  _createSelectorsFromSegment: (segmentDescription, creator) ->
     new Promise (resolve, reject) ->
       Promise.resolve().then( ->
-        creator.describe segment
+        creator.createFrom segmentDescription
       ).then((selectors) ->
         resolve selectors
       ).catch((error) ->
@@ -109,6 +145,16 @@ class Anchors.Manager
         
         return this
 
+  # Private list of registered anchoring strategies
+  _anchoringStrategies: []
+
+  # Private list of registered highlighter engines
+  _highlighterEngines: []
+
+  # Do some normalization to get a "canonical" form of a string.
+  # Used to even out some browser differences.
+  _normalizeString: (string) -> string.replace /\s{2,}/g, " "
+
 
 # Collection of dummy plugins
 Anchors.Dummy = {}
@@ -138,10 +184,10 @@ class Anchors.Dummy.DocumentAccessStrategy
 
 class Anchors.Dummy.SelectorCreator
   name: "Dummy selector creator"
-  describe: (selection) ->
-    if selection.type is "dummy"
+  createFrom: (segmentDescription) ->
+    if segmentDescription.type is "dummy"
       type: "DummySelector"
-      data: selection.data
+      data: segmentDescription.data
     else
       []
 
