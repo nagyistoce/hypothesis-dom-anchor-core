@@ -1,9 +1,34 @@
 #BackboneEvents = require('backbone-events-standalone')
-Util = require('./util')
+Util = require './util'
 Promise = require('es6-promise').Promise
+ArraySet = Util.ArraySet
 
 # Top class to export for module interface
 Anchors = {}
+
+# Info pack about a payload
+class PayloadData
+
+  constructor: (@payload) ->
+    @found = []
+    @missing = []
+
+  isOrphan: -> !@found.length and @missing.length
+
+  isHalfOrphan: -> @found.length and @missing.length
+
+  isAnchored: -> @found.length and !@missing.length
+
+  anchoredNew: (selectors, extraInfo, anchor) ->
+    @found.push
+      selectors: selectors
+      extraInfo: extraInfo
+      anchor: anchor
+
+  failedToAnchorNew: (selectors, extraInfo) ->
+    @missing.push
+      selectors: selectors
+      extraInfo: extraInfo
 
 # Anchor manager
 class Anchors.Manager
@@ -14,10 +39,11 @@ class Anchors.Manager
       throw new Error "Element missing!"
     console.log "Creating anchors manager for", @element
 
-    # Create buckets for various groups of anchors
-    @orphans = []      # Orphans
-    @halfOrphans = []  # Half-orphans
-    @anchors = {}      # Anchors on a given page
+    # Payloads we have encountered
+    @_payload = {}
+
+    # Anchors on a given page
+    @anchors = {}
 
   destroy: ->
     this.stopListening()
@@ -58,40 +84,48 @@ class Anchors.Manager
             segmentDescription.type + "' segment."
 
   # Public: create an anchor from a list of selectors
-  createAnchor: (selectors, payload) ->
+  createAnchor: (selectors, payload = null, extraInfo = null) ->
     unless selectors?
       throw new Error "Trying to create an anchor for null selector list!"
 
-    new Promise (resolveAll, rejectAll) =>
-      @_anchoringStrategies.reduce((sequence, strategy) =>
-        sequence.then ->
-          new Promise (resolve, reject) ->
-            console.log "Executing strategy '" + strategy.name + "'..."
-            try
-              Promise.cast(strategy.createAnchor selectors).then (result) ->
-                if result
-                  reject # Break the cycle. We have a solution
-                    type: "we are good"
-                    data: result
-                else
-                  resolve() # Continue with the search
-              , (error) ->
-                resolve() # Continue with the search
-            catch error
-              console.log "While executing strategy '" + strategy.name + "',", error.stack ? error
-              resolve() # Continue with the search
-      , Promise.resolve())
-      .then ->
-        rejectAll "We could not create an anchor from these selectors."
-      , (error) ->
-        if error.type is "we are good"
-          anchor = error.data
-          anchor.payload = payload
-          # TODO: do various other magic
-          resolveAll anchor # Actually return the anchor
-        else
-          rejectAll error
+    if payload? then @_registerPayload payload
 
+    new Promise (resolve, reject) =>
+      # Go over all the anchoring strategies, until one succeeds to
+      # create an anchor from these selectors
+      Util.searchUntilFirst(
+        @_anchoringStrategies,
+        (s) => @_createAnchorWith(selectors, s)
+      ).then (result) =>
+        # We have an anchor
+        anchor = result.data
+
+        # Fill in some fields on the anchor
+        anchor.manager = this
+        anchor.strategy = result.elem # Note the strategy which worked
+        anchor.payload = payload
+        anchor.extraInfo = extraInfo
+
+        # Prepare the map for the hlighlights
+        anchor.highlight = {}
+
+        # Store the anchor for all involved pages
+        for pageIndex in [anchor.startPage .. anchor.endPage]
+          @anchors[pageIndex] ?= []
+          @anchors[pageIndex].push anchor
+
+        # Save the info about the payload
+        if payload?
+          @_payload[payload].anchoredNew selectors, extraInfo, anchor
+
+        resolve anchor
+      , (error) =>
+        console.log "Could not create anchor for payload", payload
+        # Save the info about the payload
+        if payload?
+          @_payload[payload].failedToAnchorNew selectors, extraInfo
+
+        reject error
 
   # ========= Interfaces for registering plugins
 
@@ -165,6 +199,17 @@ class Anchors.Manager
     # Return self for chaining
     this
 
+  # ========= Fields and methods intended to be used by plugins ====
+
+  # Do some normalization to get a "canonical" form of a string.
+  # Used to even out some browser differences.
+  _normalizeString: (string) -> string.replace /\s{2,}/g, " "
+
+  # Find the given type of selector from an array of selectors.
+  # If it does not exist, null is returned.
+  _findSelector: (selectors, type) ->
+    selectors.filter((s) -> s.type is type)[0]
+
   # ========= Private fields and methods ====
 
   # Private list of registered selector creators
@@ -180,7 +225,7 @@ class Anchors.Manager
         resolve selectors
       ).catch((error) ->
         console.log "Internal error while using selector creator",
-          "'" + creator.name + "':", error.stack
+          "'" + creator.name + "':", error?.stack ? error
         resolve []
       )
 
@@ -209,12 +254,43 @@ class Anchors.Manager
   # Private list of registered anchoring strategies
   _anchoringStrategies: []
 
+  # Private: try to create an anchor with a given strategy
+  _createAnchorWith: (selectors, strategy) ->
+    new Promise (resolve, reject) -> # Create a wrapper promise
+      try # Apply some error handling
+        console.log "Executing strategy '" + strategy.name + "'..."
+        Promise.cast(strategy.createAnchor selectors) # Cast it into a promise
+          .then (anchor) ->
+            # Did we get something real?
+            if anchor?
+              # Do we have all the fields?
+              if anchor.type? and anchor.startPage? and
+                  anchor.endPage? and anchor.quote?
+                anchor.strategy = strategy
+                # Return the created anchor
+                resolve anchor
+              else
+                # No, some fields are missing
+                console.warn "Strategy", "'" + strategy.name + "'",
+                  "has returned an anchor without the mandatory fields.",
+                  anchor
+                reject "missing fields"
+            else
+              # No, we got a null pointer
+              reject "returned null"
+          , (error) -> reject error # The promise was rejected
+      catch error
+        # We got an exception while executing the strategy
+        console.warn "While executing strategy '" + strategy.name + "',",
+          error?.stack ? error
+        reject error?.stack ? error
+
   # Private list of registered highlighter engines
   _highlighterEngines: []
 
-  # Do some normalization to get a "canonical" form of a string.
-  # Used to even out some browser differences.
-  _normalizeString: (string) -> string.replace /\s{2,}/g, " "
+  # Private: make sure we have a record about a payload
+  _registerPayload: (payload) ->
+    @_payload[payload] ?= new PayloadData(payload)
 
 
 # Collection of dummy plugins
@@ -257,24 +333,31 @@ class Anchors.Dummy.SucceedingAnchoringStrategy
 
   createAnchor: (selectors) ->
     type: "Dummy anchor"
+    startPage: 0
+    endPage: 0
+    quote: "dummy quote"
 
 class Anchors.Dummy.FailingAnchoringStrategy1
   name: "Failing anchoring strategy (null)"
 
-  createAnchor: (selectors) ->
-    null
+  createAnchor: -> null
 
 class Anchors.Dummy.FailingAnchoringStrategy2
   name: "Failing anchoring strategy (exception)"
 
-  createAnchor: (selectors) ->
-    throw new Error "wtf"
+  createAnchor: -> throw new Error "wtf"
 
 class Anchors.Dummy.FailingAnchoringStrategy3
   name: "Failing anchoring strategy (failed promise)"
 
-  createAnchor: (selectors) ->
-    new Promise (resolve, reject) ->
-      reject()
+  createAnchor: -> new Promise (resolve, reject) -> reject()
+
+class Anchors.Dummy.FailingAnchoringStrategy4
+  name: "Failing anchoring strategy (missing fields)"
+
+  createAnchor: ->
+    type: "Dummy anchor"
+    startPage: 0
+    endPage: 0
 
 module.exports = Anchors
