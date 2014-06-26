@@ -104,7 +104,8 @@ class Anchors.Manager
         anchor.manager = this
         anchor.strategy = result.elem # Note the strategy which worked
         anchor.payload = payload
-        anchor.extraInfo = extraInfo
+        if extraInfo
+          anchor.extraInfo = extraInfo
 
         # Prepare the map for the hlighlights
         anchor.highlight = {}
@@ -255,10 +256,11 @@ class Anchors.Manager
   _anchoringStrategies: []
 
   # Private: try to create an anchor with a given strategy
-  _createAnchorWith: (selectors, strategy) ->
+  _createAnchorWith: (selectors, strategy, verbose) ->
     new Promise (resolve, reject) -> # Create a wrapper promise
       try # Apply some error handling
-        console.log "Executing strategy '" + strategy.name + "'..."
+        if verbose
+          console.log "Executing strategy '" + strategy.name + "'..."
         Promise.cast(strategy.createAnchor selectors) # Cast it into a promise
           .then (anchor) ->
             # Did we get something real?
@@ -277,8 +279,11 @@ class Anchors.Manager
                 reject "missing fields"
             else
               # No, we got a null pointer
+              if verbose then console.log "Strategy returned null"
               reject "returned null"
-          , (error) -> reject error # The promise was rejected
+          , (error) ->
+             if verbose then console.log "Strategy was rejected:", error
+             reject error # The promise was rejected
       catch error
         # We got an exception while executing the strategy
         console.warn "While executing strategy '" + strategy.name + "',",
