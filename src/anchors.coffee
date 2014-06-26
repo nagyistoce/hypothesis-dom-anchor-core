@@ -63,7 +63,7 @@ class Anchors.Manager
   # Public: prepare the documenty access strategy for usage
   prepare: (reason) =>
     @init()
-    @domMapper.prepare reason
+    @_document.prepare reason
 
   # Public: describe a segement with a list of selectors,
   # created by the registered selector creators
@@ -235,7 +235,7 @@ class Anchors.Manager
   # Private: select the document access strategy to use
   _chooseAccessPolicy: =>
     # We only have to do this once.
-    return if @domMapper
+    return if @_document
 
     # Go over the available strategies
     for s in @_documentAccessStrategies
@@ -243,7 +243,7 @@ class Anchors.Manager
       if s.applicable()
 #        @documentAccessStrategy = s
         console.log "Selected document access strategy: " + s.name
-        @domMapper = s.get()
+        @_document = s.get()
         document.addEventListener "docPageMapped", (evt) =>
           @_realizePage evt.pageIndex
         document.addEventListener "docPageUnmapped", (evt) =>
