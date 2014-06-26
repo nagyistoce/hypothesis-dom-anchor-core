@@ -282,7 +282,8 @@ class Anchors.Manager
               if verbose then console.log "Strategy returned null"
               reject "returned null"
           , (error) ->
-             if verbose then console.log "Strategy was rejected:", error
+             if verbose then console.log "Strategy was rejected:",
+               error?.stack ? error
              reject error # The promise was rejected
       catch error
         # We got an exception while executing the strategy
