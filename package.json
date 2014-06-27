@@ -1,11 +1,11 @@
 {
   "name": "dom-anchor-core",
-  "version": "0.0.0-dev7",
+  "version": "0.0.0-dev8",
   "description": "Core library code for a DOM Anchoring Framework",
   "main": "lib/anchors.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/csillag/dom-anchor-core"
+    "url": "https://github.com/hypothesis/dom-anchor-core"
   },
   "dependencies": {
     "backbone-events-standalone": "~0.2.1",
@@ -39,6 +39,11 @@
     "prepublish": "coffee -b -o lib src/",
     "test": "./tools/lint && ./tools/test"
   },
+  "author": {
+    "name": "Kristof Csillag",
+    "email": "csillag@hypothes.is"
+  },
+  "license": "BSD-2-Clause",
   "testling": {
     "server": "tools/serve",
     "html": "test/runner.html",
