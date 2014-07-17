@@ -6,26 +6,49 @@ Core library code for a DOM Anchoring Framework
 
 This document describes the concepts, components and processes making up the DOM Anchoring Framework.
 
+### High-level summary.
+
+We are are trying to describe `segments` of `documents` by sets of `selectors`, in order to be able to anchor some `payloads` to specific parts (a.k.a. `segments`) of the `document`.
+
+There are two main directions: in the first, we start with a `segment`, and end up with a set of `selectors`. In the second, we start with a set of `selectors`, and end up with an `anchor`, which encapsulates the results of our attempts to determine where the wanted `segment` of the `document` might be, based on the informatino stored in the selectors`. The `anchors` are made visible to the user by using `highlights`.
+
+We can simultaneously support different types of `anchors`, indicated by different types `highlights`. We can support different types of documents (a.k.a. `platforms`) by different `document access strategies`. We can use many different `selector creators` to capture various pieces of information about the segments in different `selector` types, and we can have many different `anchoring strategies` to try to reconstruct the location of the `segment` based on the information captured in the `selectors`. Also, we can have different `highlighter engines`, capable of rendering `highlights` for different types of `anchors`.
+
+Some of the `documents` are composed of multiple `pages`. In those cases, we have to dynamically render and remove the `highlights` for the `anchors`, as the pages are rendered / removed by the `platform`. (For example, pdf.js, which uses lazy rendering for the pages.)
+
+All of this is managed by the `anchoring manager`, which interacts with the client code, and the various pluggable components (`document access strategies`, `selector creators`, `anchoring strategies`, `highlighter engines`), and manages the various data objects ('payloads', `documents`, `pages`, `segments`, `selectors`, `anchors`, `highlights`.)
+
+
 ### Passive components
+
+#### Payload
+
+Any object that we want to anchor to a document. These are passed in by client code, and are stored together with the `anchor` created for them, for the convenience of the client code.
+
+A `payload` might have more than one `ports`, and therefore more than one `anchors`.
 
 #### Document
 
-This concept represent the document we are currently working with, in the given lifecycle of the DOM anchoring framework.
+The document we are currently working with, in the given lifecycle of the DOM anchoring framework.
 
 The framework itself does not do any kind of identification of the document.
 
-In theory, we could work over any kind of document, but in practice, there are some modules which are tied to the DOM.
-(Fortunately, not in the core itself.)
+In theory, we could work over any kind of document, but in practice, there are some modules which are tied to the DOM. (Fortunately, not in the core library itself.)
+
+The documents are usually presented to the user by rendering them into HTML, the this rendered form is not the document itself.
+
+When speaking of the document, we mean the underlying data structure, not the generated HTML representation.
+
 
 Currently supported document types are
  * Generic HTML documents
- * PDF documents rendered using PDF.js
+ * PDF documents rendered using PDF.js (via the dom-anchor-pdfjs module)
 
-Later we plan to support scribd, and google docs, ans several others formats, too.
+Later we plan to support scribd, and google docs, and several others formats, too.
 
 #### Page
 
-A `page` is a piece of the `document` which is rendered at the same time. 
+A `page` is a piece of the `document` which is known to be rendered into HTML at the same time. 
 
 A static HTML page is simply handled as a one-page document.
 
@@ -40,12 +63,6 @@ The handling of the pages is the responsibility of the `Document accesss strateg
 Any part of any `document`.
 
 A `segment` can intersect with several `pages`.
-
-#### Payload
-
-Any object belonging to an `anchor`, passed in by client code, and stored together with the `anchor` created for it, for the convenience of the client code.
-
-A `payload` might belong to more than one `anchors`.
 
 #### Segment description
 
