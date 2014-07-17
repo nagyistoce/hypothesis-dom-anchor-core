@@ -6,13 +6,13 @@ Core library code for a DOM Anchoring Framework
 
 This document describes the concepts, components and processes making up the DOM Anchoring Framework.
 
-### High-level summary.
+### High-level summary
 
 We are are trying to describe `segments` of `documents` by sets of `selectors`, in order to be able to anchor some `payloads` to specific parts (a.k.a. `segments`) of the `document`.
 
-There are two main directions: in the first, we start with a `segment`, and end up with a set of `selectors`. In the second, we start with a set of `selectors`, and end up with an `anchor`, which encapsulates the results of our attempts to determine where the wanted `segment` of the `document` might be, based on the informatino stored in the selectors`. The `anchors` are made visible to the user by using `highlights`.
+There are two main directions: in the first, we start with a `segment`, and end up with a set of `selectors`, which we can serialize and store. In the reverse direction, we start with a set of `selectors`, and (hopefully) end up with an `anchor`, which encapsulates the results of our attempts to determine where the wanted `segment` of the `document` might be, based on the information stored in the `selectors`. The `anchors` are made visible to the user by using `highlights`.
 
-We can simultaneously support different types of `anchors`, indicated by different types `highlights`. We can support different types of documents (a.k.a. `platforms`) by different `document access strategies`. We can use many different `selector creators` to capture various pieces of information about the segments in different `selector` types, and we can have many different `anchoring strategies` to try to reconstruct the location of the `segment` based on the information captured in the `selectors`. Also, we can have different `highlighter engines`, capable of rendering `highlights` for different types of `anchors`.
+We can simultaneously support different types of `anchors`, indicated by different types `highlights`. We can support different types of `documents` (a.k.a. `platforms`) by different `document access strategies`. We can use many different `selector creators` to capture various pieces of information about the `segments` in different `selector` types, and we can have many different `anchoring strategies` to try to reconstruct the location of the `segment` based on the information captured in the `selectors`. Also, we can have different `highlighter engines`, capable of rendering `highlights` for different types of `anchors`.
 
 Some of the `documents` are composed of multiple `pages`. In those cases, we have to dynamically render and remove the `highlights` for the `anchors`, as the pages are rendered / removed by the `platform`. (For example, pdf.js, which uses lazy rendering for the pages.)
 
